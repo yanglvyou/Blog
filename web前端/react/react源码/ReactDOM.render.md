@@ -187,6 +187,7 @@ export function createContainer(
 // 新建FiberRoot对象并赋值给root，初始化Fiber(通常叫做RootFiber)通过root.current = uninitializedFiber和uninitializedFiber.stateNode = root将两者联系起来。
 //执行initializeUpdateQueue(uninitializedFiber)创建一个更新队列，挂载fiber.updateQueue下面,最后将root返回
 
+//初始化fiberRoot和rootFiber
 export function createFiberRoot(
 	containerInfo: any,
 	tag: RootTag,
@@ -203,7 +204,10 @@ export function createFiberRoot(
 	// stateNode is any.
 	// RootFiber初始化
 	const uninitializedFiber = createHostRootFiber(tag);
+	//FiberRoot和RootFiber的关系
+	//FiberRoot.current = RootFiber
 	root.current = uninitializedFiber;
+	//RootFiber.stateNode = FiberRoot
 	uninitializedFiber.stateNode = root;
 
 	initializeUpdateQueue(uninitializedFiber);
@@ -232,6 +236,7 @@ function FiberRootNode(containerInfo, tag, hydrate) {
 	this.current = null;
 	this.pingCache = null;
 	this.finishedWork = null;
+	// 在任务被挂起的时候通过setTimeout设置的返回内容，用来下一次如果有新的任务挂起时清理还没触发的timeout
 	this.timeoutHandle = noTimeout;
 	// 顶层context对象，只有主动调用renderSubTreeIntoContainer时才会被调用
 	this.context = null;
@@ -443,10 +448,57 @@ export function initializeUpdateQueue<State>(fiber: Fiber): void {
 	fiber.updateQueue = queue;
 }
 ```
+
+### 创建 update
+
+> 位于 packages/react-reconciler/src/ReactFiberReconciler.new.js
+
+```javascript
+export function updateContainer(
+	element: ReactNodeList,
+	container: OpaqueRoot,
+	parentComponent: ?React$Component<any, any>,
+	callback: ?Function
+): Lane {
+	const current = container.current;
+	const eventTime = requestEventTime();
+
+	const lane = requestUpdateLane(current);
+
+	if (enableSchedulingProfiler) {
+		markRenderScheduled(lane);
+	}
+
+	const context = getContextForSubtree(parentComponent);
+	if (container.context === null) {
+		container.context = context;
+	} else {
+		container.pendingContext = context;
+	}
+
+	const update = createUpdate(eventTime, lane);
+	// Caution: React DevTools currently depends on this property
+	// being called "element".
+	// update.payload为需要挂载在根节点的组件
+	update.payload = { element };
+	// callback为ReactDOM.render的第三个参数 —— 回调函数
+	callback = callback === undefined ? null : callback;
+	if (callback !== null) {
+		update.callback = callback;
+	}
+	// 将生成的update加入updateQueue
+	enqueueUpdate(current, update);
+	// 调度更新
+	scheduleUpdateOnFiber(current, lane, eventTime);
+
+	return lane;
+}
+```
+
 ### 流程图
+
 ![图片]("https://user-gold-cdn.xitu.io/2020/5/28/1725bc4421ad0df2?imageslim")
 
-
-
 #### 参考文献
+
 > https://juejin.cn/post/6844904174002372616#heading-7
