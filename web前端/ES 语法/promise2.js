@@ -111,7 +111,7 @@ function resolvePromise(promise2, x, resolve, reject) {
         return reject(new TypeError('Chaining cycle detected for promise'));
     }
     let called;//PromiseA+2.3.3.3.3 只能调用一次,如果resolvePromise和 rejectPromise都被调用，或者对同一个参数进行多次调用，第一次调用执行，任何进一步的调用都被忽略
-    if (x != null && (typeof x === 'object' || typeof x === 'function')) {
+    if (x !== null && (typeof x === 'object' || typeof x === 'function')) {
         // x 是对象或者函数（包括promise）， let then = x.then 2、当x是对象或者函数（默认promise）
         try {
             let then = x.then;
